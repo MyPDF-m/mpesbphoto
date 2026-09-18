@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Image Converter with Format Selection</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; padding: 20px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95); padding: 40px 30px;
+            border-radius: 20px; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            text-align: center; width: 100%; max-width: 450px; backdrop-filter: blur(10px);
+        }
+
+        h2 { color: #2d3748; font-weight: 600; margin-bottom: 5px; font-size: 24px; }
+        p.subtitle { color: #718096; font-size: 14px; margin-bottom: 20px; }
+
+        .upload-area {
+            border: 2px dashed #cbd5e0; border-radius: 12px; padding: 30px 20px;
+            cursor: pointer; transition: all 0.3s ease; background-color: #f7fafc;
+            margin-bottom: 20px; display: block; position: relative;
+        }
+
+        .upload-area:hover { border-color: #667eea; background-color: #edf2f7; }
+        .upload-area.drag-over { border-color: #48bb78; background-color: #f0fff4; transform: scale(1.02); }
+        .upload-area span { display: block; color: #4a5568; font-weight: 500; margin-top: 10px; }
+        input[type="file"] { display: none; }
+
+        .format-group { text-align: left; margin-bottom: 25px; }
+        .format-group label { font-size: 13px; color: #4a5568; font-weight: 600; margin-bottom: 8px; display: block; }
+        .format-group select {
+            width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e0;
+            outline: none; font-size: 14px; font-family: 'Poppins', sans-serif; cursor: pointer;
+            background-color: white; transition: border 0.3s;
+        }
+        .format-group select:focus { border-color: #667eea; }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;
+            border: none; padding: 14px 20px; border-radius: 10px; cursor: pointer;
+            font-size: 16px; font-weight: 600; width: 100%; transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(118, 75, 162, 0.3); }
+        .btn-primary:active { transform: translateY(0); }
+
+        #status { margin-top: 20px; font-size: 14px; font-weight: 500; color: #4a5568; min-height: 20px; }
+        
+        #downloadLink {
+            display: none; margin-top: 20px; text-decoration: none; background: #48bb78;
+            color: white; padding: 14px 20px; border-radius: 10px; font-weight: 600; transition: background 0.3s;
+        }
+        #downloadLink:hover { background: #38a169; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Image Optimizer</h2>
+    <p class="subtitle">Resize & Compress Images easily</p>
+    
+    <label class="upload-area" id="dropzone" for="upload">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+        <span id="fileName">Drag & Drop image here or click to browse</span>
+    </label>
+    <input type="file" id="upload" accept=".jpg, .jpeg, .png, .webp">
+
+    <div class="format-group">
+        <label for="outFormat">Choose Output Format:</label>
+        <select id="outFormat">
+            <option value="image/jpeg">JPG (Target Size: 130-140KB)</option>
+            <option value="image/webp">WEBP (Target Size: 130-140KB)</option>
+            <option value="image/png">PNG (Best Quality, No size limit)</option>
+        </select>
+    </div>
+
+    <button class="btn-primary" onclick="processImage()">Optimize & Convert Image</button>
+    
+    <div id="status"></div>
+    <a id="downloadLink">Download Image</a>
+</div>
+
+<script>
+    const fileInput = document.getElementById('upload');
+    const fileNameSpan = document.getElementById('fileName');
+    const dropzone = document.getElementById('dropzone');
+
+    fileInput.addEventListener('change', function() { updateFileName(this.files); });
+
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+    dropzone.addEventListener('dragleave', (e) => { dropzone.classList.remove('drag-over'); });
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('drag-over');
+        const files = e.dataTransfer.files;
+        if (files.length > 0 && files[0].type.startsWith('image/')) {
+            fileInput.files = files;
+            updateFileName(files);
+        }
+    });
+
+    function updateFileName(files) {
+        if (files && files.length > 0) {
+            fileNameSpan.innerText = files[0].name;
+            fileNameSpan.style.color = '#667eea';
+        } else {
+            fileNameSpan.innerText = 'Drag & Drop image here or click to browse';
+            fileNameSpan.style.color = '#4a5568';
+        }
+    }
+
+    async function processImage() {
+        const status = document.getElementById('status');
+        const downloadLink = document.getElementById('downloadLink');
+        const outFormat = document.getElementById('outFormat').value;
+
+        if (!fileInput.files[0]) {
+            status.innerText = "⚠️ Please select an image first!";
+            status.style.color = "#e53e3e";
+            return;
+        }
+
+        const file = fileInput.files[0];
+        status.innerText = "⏳ Processing... Please wait.";
+        status.style.color = "#4a5568";
+        downloadLink.style.display = 'none';
+
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+
+        img.onload = async () => {
+            let targetWidth = 750;
+            let targetHeight = (img.height / img.width) * targetWidth;
+            if (targetHeight < 500) targetHeight = 500;
+            if (targetHeight > 940) targetHeight = 940;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+            const ctx = canvas.getContext('2d');
+            
+            if(outFormat === 'image/jpeg') {
+                ctx.fillStyle = "#FFFFFF";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+            let finalBlob = await compressToTargetSize(canvas, 130, 140, outFormat);
+            
+            let ext = 'jpg';
+            if(outFormat === 'image/png') ext = 'png';
+            if(outFormat === 'image/webp') ext = 'webp';
+
+            const originalName = file.name.split('.')[0];
+            const finalFileName = `${originalName}_optimized.${ext}`;
+
+            // --- MAIN FIX IS HERE ---
+            // Yahan hum browser ko zabardasti bata rahe hain ki ye kaunsi file hai
+            const finalFileObject = new File([finalBlob], finalFileName, { type: outFormat });
+            // ------------------------
+
+            const sizeKB = (finalFileObject.size / 1024).toFixed(2);
+            status.innerHTML = `✅ <b>Success!</b><br>Size: ${sizeKB} KB | Dimensions: ${Math.round(targetWidth)}x${Math.round(targetHeight)}`;
+            status.style.color = "#38a169";
+            
+            downloadLink.download = finalFileName;
+            downloadLink.href = URL.createObjectURL(finalFileObject);
+            downloadLink.style.display = 'block';
+            downloadLink.innerText = `Download ${ext.toUpperCase()}`;
+        };
+    }
+
+    async function compressToTargetSize(canvas, minKB, maxKB, format) {
+        if (format === 'image/png') {
+            return await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        }
+
+        let minQuality = 0.0; let maxQuality = 1.0; let quality = 0.8;
+        let bestBlob = null; let closestDiff = Infinity; let iterations = 0; const maxIterations = 15;
+
+        while (iterations < maxIterations) {
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, format, quality));
+            const currentKB = blob.size / 1024;
+            let diff = Math.abs(currentKB - 135);
+            
+            if (diff < closestDiff) { closestDiff = diff; bestBlob = blob; }
+            if (currentKB >= minKB && currentKB <= maxKB) return blob;
+            
+            if (currentKB > maxKB) maxQuality = quality;
+            else minQuality = quality;
+            
+            quality = (minQuality + maxQuality) / 2;
+            iterations++;
+        }
+        return bestBlob; 
+    }
+</script>
+
+</body>
+</html>
